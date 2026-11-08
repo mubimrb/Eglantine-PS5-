@@ -24,12 +24,15 @@ code = '''
 #include <cassert>
 #include <cstdint>
 using u64 = uint64_t;
+// The extracted source uses the platform CPUID helper. The fixture preloads
+// cpu_id with the requested leaf values, so model the helper as a no-op.
+#define __cpuid(info, leaf) ((void)(info), (void)(leaf))
 static unsigned estimates;
 static u64 estimated;
 namespace X64 { u64 EstimateRDTSCFrequency() { ++estimates; return estimated; } }
 u64 select(unsigned max_std_fn, int denominator, int numerator, int crystal) {
     int cpu_id[]{denominator, numerator, crystal, 0};
-    struct { u64 tsc_frequency = 0, tsc_crystal_ratio_denominator = 0,
+    struct { bool invariant_tsc = false; u64 tsc_frequency = 0, tsc_crystal_ratio_denominator = 0,
         tsc_crystal_ratio_numerator = 0, crystal_frequency = 0; } caps;
 ''' + selection + '''
     return caps.tsc_frequency;
