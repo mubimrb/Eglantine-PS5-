@@ -167,10 +167,8 @@ jobs:
         id: build
         timeout-minutes: 315
         run: |
-          # The restored cache carries stale Ninja dependency manifests for the multiplayer
-          # overlay headers. Rebuild once from clean compiler-cache entries so the package
-          # source checks see the current generated headers.
-          ccache --clear
+          # The native build directory is recreated by build-headless-native.sh so Ninja
+          # regenerates dependency manifests. Keep ccache: its objects are still reusable.
           ccache --zero-stats
           bash tools/ci/build-release.sh
 
