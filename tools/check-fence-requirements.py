@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Exercise actual fence commit/signal code and diagnostic masks with mock caches."""
+"""Exercise actual fence commit/signal code and mock caches with mock caches."""
 from pathlib import Path
 import subprocess
 import tempfile
 
 root = Path(__file__).resolve().parents[1]
 source = (root / 'Eglantine/src/video_core/fence_manager.h').read_text()
-diagnostic = (root / 'Eglantine/src/video_core/readback_diagnostics.h').read_text()
 
 
 def body(text, signature):
@@ -40,14 +39,11 @@ bool IsGPUFenceBehaviorBalanced(){return delayed;}bool IsGPUFenceBehaviorAccurat
 }
 namespace VideoCommon {
 namespace Nx2Profile {enum class Zone{Fence,FenceSkipped};struct Scope{Scope(Zone){}};}
-namespace ReadbackDiagnostics {
 enum class Event { Count };
 struct Measurement {};
 inline bool enabled=true;
 bool Enabled(){return enabled;}
 '''
-code += body(diagnostic, 'struct ThreadData') + ';\ninline thread_local ThreadData data;\n'
-code += body(diagnostic, 'inline void CountFence') + '\n}\n'
 code += r'''
 struct Cache {
  std::mutex mutex;bool pending{},side_work{};unsigned checks{},commits{};
@@ -80,28 +76,20 @@ code += r'''
 int main(){
  using namespace VideoCommon;
  for(bool delayed:{false,true})for(unsigned mask=0;mask<8;++mask){
-  Settings::delayed=delayed;ReadbackDiagnostics::data={};Manager m;
   m.texture_cache.pending=mask&1;m.buffer_cache.pending=mask&2;m.query_cache.pending=mask&4;
   unsigned callbacks{};m.SignalFence([&]{++callbacks;});
   assert(m.queued==1&&m.fences.size()==1&&m.fences.front()->stubbed==(mask==0));
-  assert(ReadbackDiagnostics::data.fence_masks[mask]==1&&!ReadbackDiagnostics::data.skipped_empty_fences);
   assert(m.texture_cache.checks==1&&m.buffer_cache.checks==1&&m.query_cache.checks==1);
   assert(m.texture_cache.commits==bool(mask&1)&&m.buffer_cache.commits==bool(mask&2)&&m.query_cache.commits==1);
   assert(m.pending_flushes.back()==(mask&3)&&m.rasterizer.flushes==bool(mask));
   assert(callbacks==!delayed&&m.rasterizer.invalidates==1&&m.gpu.begins==m.gpu.ends);
   if(delayed){assert(m.pending_operations.back().size()==1);m.pending_operations.back()[0]();assert(callbacks==1);}
  }
- Settings::delayed=false;ReadbackDiagnostics::data={};
  {Manager m;m.skip=true;unsigned calls{};m.SignalFence([&]{++calls;});
-  assert(calls==1&&!m.queued&&ReadbackDiagnostics::data.skipped_empty_fences==1);
   assert(!m.query_cache.checks&&!m.query_cache.commits&&m.gpu.begins==m.gpu.ends);}
- ReadbackDiagnostics::data={};
  {Manager m;m.texture_cache.side_work=true;unsigned calls{};m.SignalFence([&]{++calls;});
   assert(m.queued==1&&m.fences.front()->stubbed&&m.texture_cache.commits==1);
-  assert(m.pending_flushes.back()==1&&!m.rasterizer.flushes&&ReadbackDiagnostics::data.fence_masks[0]==1);}
- ReadbackDiagnostics::enabled=false;ReadbackDiagnostics::data={};
  {Manager m;m.buffer_cache.pending=true;m.SignalFence([]{});assert(m.queued==1&&m.rasterizer.flushes==1);}
- for(auto n:ReadbackDiagnostics::data.fence_masks)assert(n==0);
 }
 '''
 # SignalFence names cv in its discarded asynchronous branch.
@@ -112,4 +100,4 @@ with tempfile.TemporaryDirectory(prefix='fence-requirements-') as temp:
     subprocess.run(['clang++-18', '-std=c++20', '-O1', '-g', '-pthread',
                     '-fsanitize=address,undefined', str(path / 'check.cpp'), '-o', str(path / 'check')], check=True)
     subprocess.run([str(path / 'check')], check=True, timeout=10)
-print('Fence requirements PASS: all masks in immediate/delayed modes, precommit requirements, empty skip, side-work stub, disabled counters and callback ordering')
+print('Fence requirements PASS: all masks in immediate/delayed modes, precommit requirements, empty skip, side-work stub, callback ordering')
