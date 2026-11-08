@@ -1,0 +1,42 @@
+--- a/src/video_core/gpu_split.cpp
++++ b/src/video_core/gpu_split.cpp
+@@ -2,6 +2,7 @@
+ // SPDX-License-Identifier: GPL-3.0-or-later
+ 
+ #include <algorithm>
++#include <chrono>
+ #include <cstdlib>
+ #include <thread>
+ 
+@@ -206,6 +207,7 @@
+     // Everything consumed is not enough: the back submits deferred work (Scheduler::DeferFlush)
+     // from its idle hook afterwards, and the caller may use the scheduler once this returns.
+     bool hook_asked = false;
++    auto next_warning = std::chrono::steady_clock::now() + std::chrono::seconds{5};
+     for (u32 spins = 0;; ++spins) {
+         consumed_cache = consumed.load(std::memory_order_acquire);
+         if (consumed_cache == write_position) {
+@@ -218,6 +220,19 @@
+                 hook_asked = true;
+             }
+         }
++        // Diagnostic only: report a stalled drain without changing synchronization semantics.
++        // Throttle clock checks to avoid adding overhead to the hot spin loop.
++        if ((spins & 0xffffU) == 0) {
++            const auto now = std::chrono::steady_clock::now();
++            if (now >= next_warning) {
++                LOG_WARNING(HW_GPU,
++                            "GPU split drain stalled: consumed={} target={} back_running={} "
++                            "back_quiet={} hook_asked={}",
++                            consumed_cache, write_position, BackRunning(), BackQuiet(),
++                            hook_asked);
++                next_warning = now + std::chrono::seconds{5};
++            }
++        }
+         if (spins < 16384) {
+             Pause();
+         } else {
+             std::this_thread::yield();
+         }
+     }
+ }
