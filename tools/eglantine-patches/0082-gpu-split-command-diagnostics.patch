@@ -1,18 +1,20 @@
 diff --git a/src/video_core/gpu_split.h b/src/video_core/gpu_split.h
 --- a/src/video_core/gpu_split.h
 +++ b/src/video_core/gpu_split.h
-@@
+@@ -234,5 +234,8 @@
      alignas(64) std::atomic<bool> hook_requested{};
      std::atomic<bool> back_running{};
      std::atomic<bool> back_quiet{true};
 +    // Last command entered by the back thread; read by Drain diagnostics if Execute stalls.
 +    alignas(64) std::atomic<u64> executing_position{};
 +    std::atomic<u64> executing_head{};
+ 
+     // 128 bytes: x86 spatial prefetchers pull 64-byte lines in pairs. back_waiting and wake are
 
 diff --git a/src/video_core/gpu_split.cpp b/src/video_core/gpu_split.cpp
 --- a/src/video_core/gpu_split.cpp
 +++ b/src/video_core/gpu_split.cpp
-@@
+@@ -225,8 +225,9 @@
                  LOG_WARNING(HW_GPU,
                              "GPU split drain waiting on the back thread: {} of {} words consumed, "
 -                            "back {} ({})",
@@ -23,9 +25,10 @@ diff --git a/src/video_core/gpu_split.cpp b/src/video_core/gpu_split.cpp
 +                            g_back_busy.load() ? "inside a command" : "between batches",
 +                            executing_position.load(std::memory_order_relaxed),
 +                            executing_head.load(std::memory_order_relaxed));
-@@
+@@ -417,5 +418,7 @@
          while (read_position != available) {
              const size_t index = read_position & RingMask;
 +            executing_position.store(read_position, std::memory_order_relaxed);
 +            executing_head.store(ring[index], std::memory_order_relaxed);
              const size_t size = Execute(&ring[index]);
+             read_position += size != 0 ? size : RingWords - index;
