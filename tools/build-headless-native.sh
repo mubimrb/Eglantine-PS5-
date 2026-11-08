@@ -45,7 +45,7 @@ test -f "$ffmpeg/lib/libavcodec.a" || { echo 'Run tools/build-headless-ffmpeg.sh
 # EDEN_CPU_PRESET=zen2: the toolchain file compiles the emulator for the console's own CPU
 # (AVX2, BMI2, ...) instead of generic x86-64; the driver archive is prebuilt and unaffected.
 # The flags are cached at the first configure: a change needs a fresh build directory.
-cmake -S "$scratch/source" -B "$scratch/native-local" -G Ninja \
+# Ninja dependency manifests in the restored native-local tree can retain paths to\n# upstream headers that the generated multiplayer overlay now shadows. Start with a\n# fresh build directory; keep source downloads and compiler cache intact.\nrm -rf "$scratch/native-local"\ncmake -S "$scratch/source" -B "$scratch/native-local" -G Ninja \
     -DCMAKE_TOOLCHAIN_FILE="$root/headless/ps5.cmake" -DPS5_NATIVE=ON -DEDEN_DEVICE_FRONTEND="$devices" \
     -DCMAKE_BUILD_TYPE=Release -DENABLE_LTO=OFF \
     -DEDEN_PS5_VULKAN="${EDEN_PS5_VULKAN:-OFF}" \
