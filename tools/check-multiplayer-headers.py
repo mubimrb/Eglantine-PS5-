@@ -45,7 +45,7 @@ for line in ninja('deps').splitlines():
         continue
     if target not in active:
         continue
-    path = line.strip().replace('\\\\', '/')
+    path = line.strip().replace(chr(92), '/')
     for header, generated_path in expected.items():
         if path.endswith('/' + header):
             if path == generated_path:
