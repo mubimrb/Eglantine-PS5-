@@ -80,7 +80,11 @@ def download(url, algorithm, expected, name):
     for attempt in range(1, 4):
         try:
             print(f'deps: downloading {url}', flush=True)
-            request = urllib.request.Request(url, headers={'User-Agent': 'eglantineps5-deps'})
+            headers = {'User-Agent': 'eglantineps5-deps'}
+            if '/releases/assets/' in url:
+                headers['Accept'] = 'application/octet-stream'
+                headers['X-GitHub-Api-Version'] = '2022-11-28'
+            request = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(request, timeout=120) as response, open(partial, 'wb') as out:
                 shutil.copyfileobj(response, out, 1 << 20)
             break
