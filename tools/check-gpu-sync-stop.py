@@ -101,7 +101,7 @@ struct GpuSplit {
 };
 }
 void DrainBack(){VideoCommon::GpuSplit::Get().Drain();}
-''' + "${release}" + `
+''' + release + r'''
 struct Puller {struct Regs {struct Address{unsigned SemaphoreAddress(){return 0;}}semaphore_address;u32 semaphore_acquire=4,acquire_value{};bool acquire_active{},acquire_mode{},acquire_source{};}regs;
 void ProcessSemaphoreAcquire(DmaPusher&dma_pusher){
 '''+acquire+r'''
