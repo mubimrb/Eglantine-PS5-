@@ -167,6 +167,8 @@ jobs:
         id: build
         timeout-minutes: 315
         run: |
+          # The native build directory is recreated by build-headless-native.sh so Ninja
+          # regenerates dependency manifests. Keep ccache: its objects are still reusable.
           ccache --zero-stats
           bash tools/ci/build-release.sh
 

@@ -17,22 +17,11 @@ file(GLOB ampere_tests CONFIGURE_DEPENDS "${EDEN_SOURCE}/src/tests/video_core/am
 # These two integration tests link the complete shader compiler and run in upstream tests.
 # This host check exercises the header-only native capture/lowering and memory helpers.
 list(FILTER ampere_tests EXCLUDE REGEX "ampere_(bindless_tex|sured)\\.cpp$")
+# The pinned submodule contains Ampere shader-lowering tests, but not the
+# later NX2 host-command/readback test files used by newer development trees.
+# Compile only tests that are present at the exact submodule revision.
 add_executable(nx2-core-check ${ampere_tests}
-    logging.cpp
-    "${EDEN_SOURCE}/src/tests/common/host_command_completion.cpp"
-    "${EDEN_SOURCE}/src/tests/common/host_command_queue.cpp"
-    "${EDEN_SOURCE}/src/tests/core/read_traps.cpp"
-    "${EDEN_SOURCE}/src/tests/core/nx2_readback_cache.cpp"
-    "${EDEN_SOURCE}/src/tests/core/nx2_core_readback_capacity.cpp"
-    "${EDEN_SOURCE}/src/tests/video_core/nx2_gpu_mappings.cpp"
-    "${EDEN_SOURCE}/src/tests/video_core/nx2_command_ranges.cpp"
-    "${EDEN_SOURCE}/src/tests/video_core/nx2_command_sync.cpp"
-    "${EDEN_SOURCE}/src/tests/video_core/nx2_sparse_region.cpp"
-    "${EDEN_SOURCE}/src/tests/video_core/nx2_sparse_tiles.cpp"
-    "${EDEN_SOURCE}/src/tests/video_core/nx2_sparse_images.cpp"
-    "${EDEN_SOURCE}/src/tests/video_core/nx2_sparse_image_write.cpp"
-    "${EDEN_SOURCE}/src/tests/video_core/memory_budget.cpp"
-    "${EDEN_SOURCE}/src/tests/video_core/query_region_visit.cpp")
+    logging.cpp)
 file(GLOB boost_includes "${DEPENDENCY_SOURCE}/.cache/cpm/boost/*/libs/*/include")
 # Eden's pinned Vulkan headers (sparse_image_policy.h), not whatever the host has installed.
 file(GLOB vulkan_includes "${DEPENDENCY_SOURCE}/.cache/cpm/vulkanheaders/*/include")

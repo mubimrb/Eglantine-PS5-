@@ -15,6 +15,9 @@ code=r'''
 #include <semaphore>
 #include <thread>
 using u64=unsigned long long;
+using u32=unsigned; // Match the pinned core's GPU logging types.
+enum { HW_GPU = 0 };
+#define LOG_WARNING(...) ((void)0)
 struct Worker {std::thread t;std::atomic_bool stopping{};void Stop(){stopping=true;if(t.joinable())t.join();}void TickGPU(bool){}void InvalidateReadbackCache(){}};
 struct GPU {
  std::mutex sync_request_mutex,sync_mutex;
@@ -59,7 +62,19 @@ print('Actual GPU sync methods: cancelled/pending/active requests, callback life
 dma=(c/'native-local/headless/dma_pusher.cpp').read_text()
 puller=(c/'native-local/headless/engines_puller.cpp').read_text()
 wait=re.split(r'    if \(signal_sync(?: && !synced)?\) \{',dma,maxsplit=1)[1].split('        signal_sync = false;',1)[0]
-acquire=puller.split('void Puller::ProcessSemaphoreAcquire(DmaPusher& dma_pusher) {',1)[1].split('\n}\n',1)[0]
+def function(source, signature):
+ start=source.index(signature)
+ opening=source.index('{',start)
+ depth=0
+ for index in range(opening,len(source)):
+  if source[index]=='{': depth+=1
+  elif source[index]=='}':
+   depth-=1
+   if depth==0: return source[start:index+1]
+ raise ValueError(f'unclosed function: {signature}')
+release=function(puller,'void ReleaseFencesOnBack(DmaPusher& dma_pusher)')
+acquire_function=function(puller,'void Puller::ProcessSemaphoreAcquire(DmaPusher& dma_pusher)')
+acquire=acquire_function[acquire_function.index('{')+1:-1]
 code=r'''
 #include <atomic>
 #include <cassert>
@@ -68,7 +83,6 @@ code=r'''
 #include <mutex>
 #include <thread>
 using u32=unsigned;
-void DrainBack(){} // the GPU thread split's wait for its back thread (engines/puller.cpp)
 struct System{std::atomic_bool stop{};bool IsShuttingDown(){return stop;}};
 struct DMA {System system;std::mutex sync_mutex;std::condition_variable sync_cv;bool synced{};
 bool Wait(){
@@ -78,6 +92,16 @@ bool Wait(){
 struct Memory {std::atomic<u32> value{};template<class T>T Read(unsigned){return value.load();}};
 struct Raster {std::atomic_uint calls{};void ReleaseFences(){++calls;}};
 struct DmaPusher {System system;Memory memory_manager;Raster raster;Raster*rasterizer=&raster;};
+namespace VideoCommon {
+struct GpuSplit {
+ std::atomic_uint drains{},back_calls{};
+ static GpuSplit& Get(){static GpuSplit split;return split;}
+ template<class F> void RunOnBack(F&& func){++back_calls;func();}
+ void Drain(){++drains;}
+};
+}
+void DrainBack(){VideoCommon::GpuSplit::Get().Drain();}
+''' + release + r'''
 struct Puller {struct Regs {struct Address{unsigned SemaphoreAddress(){return 0;}}semaphore_address;u32 semaphore_acquire=4,acquire_value{};bool acquire_active{},acquire_mode{},acquire_source{};}regs;
 void ProcessSemaphoreAcquire(DmaPusher&dma_pusher){
 '''+acquire+r'''
@@ -87,6 +111,9 @@ int main(){
  DMA normal;normal.synced=true;assert(normal.Wait());
  DmaPusher p;Puller pull;std::thread worker([&]{pull.ProcessSemaphoreAcquire(p);});
  while(!p.raster.calls)std::this_thread::yield();p.system.stop=true;worker.join();
+ assert(p.raster.calls.load()>0);
+ assert(VideoCommon::GpuSplit::Get().back_calls.load()==p.raster.calls.load());
+ assert(VideoCommon::GpuSplit::Get().drains.load()>=1);
  p.system.stop=false;p.memory_manager.value=4;pull.ProcessSemaphoreAcquire(p);
 }
 '''
@@ -94,4 +121,4 @@ with tempfile.TemporaryDirectory() as tmp:
  p=Path(tmp);(p/'wait.cpp').write_text(code)
  subprocess.run(['g++','-std=c++20','-pthread','-fsanitize=address,undefined','-g',str(p/'wait.cpp'),'-o',str(p/'wait')],check=True)
  subprocess.run([str(p/'wait')],check=True,timeout=10)
-print('Actual DMA fence and semaphore waits: normal completion and unsignalled shutdown PASS')
+print('Actual DMA fence and semaphore waits: normal completion, shutdown cancellation and split-back fence dispatch PASS')
