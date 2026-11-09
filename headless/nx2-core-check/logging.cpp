@@ -4,6 +4,7 @@
 #define FMT_HEADER_ONLY
 #include <cstdio>
 #include "common/logging.h"
+#include "common/settings.h"
 
 namespace Common::Log {
 void FmtLogMessageImpl(Class, Level, const char*, unsigned int, const char*,
@@ -12,3 +13,12 @@ void FmtLogMessageImpl(Class, Level, const char*, unsigned int, const char*,
     std::fputc('\n', stderr);
 }
 } // namespace Common::Log
+
+// Shader-lowering tests reference the current program ID through logging and
+// diagnostics. The host-only target has no application/session lifecycle, so
+// provide the neutral default used by an unloaded program.
+namespace Settings {
+u64 GetCurrentProgramID() {
+    return 0;
+}
+} // namespace Settings
