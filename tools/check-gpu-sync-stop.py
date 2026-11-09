@@ -15,7 +15,7 @@ code=r'''
 #include <semaphore>
 #include <thread>
 using u64=unsigned long long;
-using u32=unsigned;
+using u32=unsigned; // Match the pinned core's GPU logging types.
 enum { HW_GPU = 0 };
 #define LOG_WARNING(...) ((void)0)
 struct Worker {std::thread t;std::atomic_bool stopping{};void Stop(){stopping=true;if(t.joinable())t.join();}void TickGPU(bool){}void InvalidateReadbackCache(){}};
