@@ -1,0 +1,24 @@
+diff --git a/CMakeModules/CPMUtil.cmake b/CMakeModules/CPMUtil.cmake
+index 0000000..0000000 100644
+--- a/CMakeModules/CPMUtil.cmake
++++ b/CMakeModules/CPMUtil.cmake
+@@ -186,7 +186,8 @@ function(cpm_download url file)
+ 
+     foreach(i RANGE 5)
+         file(DOWNLOAD ${url} ${file}
++            HTTPHEADER "Accept: application/octet-stream"
+             ${args}
+             STATUS ret)
+ 
+diff --git a/cpmfile.json b/cpmfile.json
+index 0000000..0000000 100644
+--- a/cpmfile.json
++++ b/cpmfile.json
+@@ -7,6 +7,7 @@
+         "version": "v0.19.0"
+     },
+     "boost": {
++        "url": "https://api.github.com/repos/eden-emulator/ext-boost/releases/assets/564326283",
+         "artifact": "boost-%VERSION%.tar.zst",
+         "find_args": "CONFIG OPTIONAL_COMPONENTS headers context system fiber filesystem",
+         "hash": "681d97be4386767662e230b2e7c9754d45e709cc5db4e747c23c27d1f5b0e87770bdf19b0bc44dcb0e8349324887bbb8fffb432098f4d0ce74a5043021a90afc",
