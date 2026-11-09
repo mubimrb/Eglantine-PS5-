@@ -73,7 +73,8 @@ def function(source, signature):
    if depth==0: return source[start:index+1]
  raise ValueError(f'unclosed function: {signature}')
 release=function(puller,'void ReleaseFencesOnBack(DmaPusher& dma_pusher)')
-acquire=function(puller,'void Puller::ProcessSemaphoreAcquire(DmaPusher& dma_pusher)')
+acquire_function=function(puller,'void Puller::ProcessSemaphoreAcquire(DmaPusher& dma_pusher)')
+acquire=acquire_function[acquire_function.index('{')+1:-1]
 code=r'''
 #include <atomic>
 #include <cassert>
