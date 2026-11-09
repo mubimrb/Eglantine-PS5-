@@ -2,7 +2,7 @@ diff --git a/CMakeModules/CPMUtil.cmake b/CMakeModules/CPMUtil.cmake
 index 0000000..0000000 100644
 --- a/CMakeModules/CPMUtil.cmake
 +++ b/CMakeModules/CPMUtil.cmake
-@@ -186,7 +186,8 @@ function(cpm_download url file)
+@@ -186,6 +186,7 @@ function(cpm_download url file)
  
      foreach(i RANGE 5)
          file(DOWNLOAD ${url} ${file}
